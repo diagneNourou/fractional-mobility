@@ -1,0 +1,21 @@
+Dans cette première phase, nous avons procédé à l’acquisition et à la préparation des données de mobilité issues du dataset Geolife.
+ Les fichiers bruts au format .plt ont été convertis en un format exploitable (CSV) à l’aide de Python et de la bibliothèque Pandas.
+ Une première exploration des données a permis de vérifier leur structure, leur cohérence et leur qualité.
+
+
+Données brutes → nettoyage → stockage → utilisation
+version propre 
+Geolife (.plt)
+   ↓
+Conversion (Python)
+   ↓
+CSV (geolife.csv)
+   ↓
+Traitement (M1, M3…)
+
+
+| Dataset   | Type      | Taille | Utilité      |
+| --------- | --------- | ------ | ------------ |
+| Geolife   | GPS       | moyen  | trajectoires |
+| YJMob100K | GPS + POI | moyen  | sémantique   |
+| NYC Taxi  | flux      | énorme | patterns     |
