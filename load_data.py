@@ -2,7 +2,8 @@ import pandas as pd
 import glob
 import os
 
-# chemin vers les fichiers .plt
+
+# Chemin vers les fichiers .plt
 path = "data/raw/Geolife Trajectories 1.3/Data/*/Trajectory/*.plt"
 
 files = glob.glob(path)
@@ -11,48 +12,131 @@ print("Nombre de fichiers trouvés :", len(files))
 
 
 def read_plt(file):
+
     df = pd.read_csv(
         file,
-        skiprows=6,  # ignorer les 6 premières lignes
+        skiprows=6,
         header=None,
-        names=['lat', 'lon', 'alt', 'days', 'date', 'time']
+        names=[
+            'lat',
+            'lon',
+            'zero',
+            'alt',
+            'days',
+            'date',
+            'time'
+        ]
     )
-    # Voir nombre de lignes
-    print(df.info())
 
-    # Types de donnees
-    print(df.describe())
+    # Créer la colonne datetime
+    df['datetime'] = pd.to_datetime(
+        df['date'] + ' ' + df['time']
+    )
 
-    #Verifier pas de valeurs nulles et coherence des donnees
-    print(df.head())
-    print(df.isnull().sum())
-   
-    # créer colonne datetime
-    df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
-    
+    # Garder uniquement les colonnes utiles
     return df[['lat', 'lon', 'datetime']]
 
 
-# lire quelques fichiers (test)
+# Lire les fichiers
 dfs = []
 
-for file in files[:20]:  # commence petit !
-    try:
-        df = read_plt(file)
-        dfs.append(df)
-    except Exception as e:
-        print("Erreur :", e)
+for file in files[:20]:
 
-# fusionner
-data = pd.concat(dfs, ignore_index=True)
+    try:
+
+        df = read_plt(file)
+
+        # Récupérer l'identifiant utilisateur
+        # Structure :
+        # Data / utilisateur / Trajectory / fichier.plt
+        parts = file.replace("\\", "/").split("/")
+
+        user_id = parts[-3]
+
+        # Ajouter l'identifiant utilisateur
+        df['user_id'] = user_id
+
+        dfs.append(df)
+
+        print(
+            "Fichier chargé :",
+            os.path.basename(file),
+            "| utilisateur :",
+            user_id,
+            "| lignes :",
+            len(df)
+        )
+
+    except Exception as e:
+
+        print(
+            "Erreur dans",
+            file,
+            ":",
+            e
+        )
+
+
+# Vérifier qu'on a bien récupéré des données
+if not dfs:
+
+    print("Aucune donnée chargée.")
+    exit()
+
+
+# Fusionner les données
+data = pd.concat(
+    dfs,
+    ignore_index=True
+)
+
+
+# Trier les données
+data = data.sort_values(
+    ['user_id', 'datetime']
+).reset_index(drop=True)
+
+
+# Vérifications
+print("\n========== APERÇU ==========")
 
 print(data.head())
-print("Nombre de lignes :", len(data))
-os.makedirs("data/processed", exist_ok=True)
 
-data.to_csv("data/processed/geolife.csv", index=False)
+print("\n========== INFORMATIONS ==========")
 
-#Geolife contient plusieurs utilisateurs 
-df['user_id'] = 0
-print("Dataset sauvegardé !")
-print("OK")
+print(data.info())
+
+print("\n========== VALEURS MANQUANTES ==========")
+
+print(data.isnull().sum())
+
+print("\n========== STATISTIQUES ==========")
+
+print(data[['lat', 'lon']].describe())
+
+print("\nNombre total de lignes :", len(data))
+
+print(
+    "Nombre d'utilisateurs :",
+    data['user_id'].nunique()
+)
+
+
+# Créer le dossier de sortie
+os.makedirs(
+    "data/processed",
+    exist_ok=True
+)
+
+
+# Sauvegarder
+output_file = "data/processed/geolife.csv"
+
+data.to_csv(
+    output_file,
+    index=False
+)
+
+
+print("\nDataset sauvegardé !")
+print("Fichier :", output_file)
