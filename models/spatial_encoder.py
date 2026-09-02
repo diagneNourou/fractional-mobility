@@ -8,28 +8,26 @@ class SpatialEncoder(nn.Module):
     """
     Encodeur spatial du modèle S2-LSTM.
 
-    Pipeline :
-
-        7 caractéristiques
-              ↓
-             MLP
-              ↓
-            LSTM
-              ↓
-    Attention géographique
-              ↓
-        h_spatial
-
-    Entrées :
+    Entrée :
         x :
             (batch, sequence_length, 7)
 
         locations :
             (batch, sequence_length, 2)
 
-    Sorties :
+    Sorties normales :
         h_spatial :
-            (batch, hidden_size)
+            (batch, 128)
+
+        attention_weights :
+            (batch, sequence_length - 1)
+
+    Avec return_sequence=True :
+        h_spatial :
+            (batch, 128)
+
+        H_spatial :
+            (batch, sequence_length, 128)
 
         attention_weights :
             (batch, sequence_length - 1)
@@ -41,7 +39,6 @@ class SpatialEncoder(nn.Module):
         embedding_size=64,
         hidden_size=128
     ):
-
         super().__init__()
 
         # ==========================================
@@ -49,14 +46,11 @@ class SpatialEncoder(nn.Module):
         # ==========================================
 
         self.mlp = nn.Sequential(
-
             nn.Linear(
                 input_size,
                 embedding_size
             ),
-
             nn.ReLU(),
-
             nn.Linear(
                 embedding_size,
                 embedding_size
@@ -68,11 +62,8 @@ class SpatialEncoder(nn.Module):
         # ==========================================
 
         self.lstm = nn.LSTM(
-
             input_size=embedding_size,
-
             hidden_size=hidden_size,
-
             batch_first=True
         )
 
@@ -80,13 +71,20 @@ class SpatialEncoder(nn.Module):
         # 3. Attention géographique
         # ==========================================
 
-        self.geographical_attention = (
-            GeographicalAttention(
-                hidden_size=hidden_size
-            )
+        self.geographical_attention = GeographicalAttention(
+            hidden_size=hidden_size
         )
 
-    def forward(self, x, locations):
+    # ==========================================
+    # FORWARD
+    # ==========================================
+
+    def forward(
+        self,
+        x,
+        locations,
+        return_sequence=False
+    ):
 
         # ==========================================
         # 1. MLP
@@ -94,6 +92,7 @@ class SpatialEncoder(nn.Module):
 
         spatial_embedding = self.mlp(x)
 
+        # spatial_embedding :
         # (batch, sequence_length, 64)
 
 
@@ -105,7 +104,10 @@ class SpatialEncoder(nn.Module):
             spatial_embedding
         )
 
+        # hidden_states :
         # (batch, sequence_length, 128)
+        #
+        # Cette variable représente H_spatial.
 
 
         # ==========================================
@@ -121,5 +123,24 @@ class SpatialEncoder(nn.Module):
 
         # h_spatial :
         # (batch, 128)
+        #
+        # attention_weights :
+        # (batch, sequence_length - 1)
 
-        return h_spatial, attention_weights
+
+        # ==========================================
+        # 4. Retour des résultats
+        # ==========================================
+
+        if return_sequence:
+
+            return (
+                h_spatial,
+                hidden_states,
+                attention_weights
+            )
+
+        return (
+            h_spatial,
+            attention_weights
+        )
